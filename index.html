@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>项目流程追踪器</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- 侧边栏 -->
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-resize-handle" id="resizeHandle"></div>
+  <div class="sidebar-top">
+    <div class="sidebar-header">
+      <h2>📋 项目列表</h2>
+      <div class="theme-selector">
+        <button class="theme-toggle" onclick="toggleThemeDropdown()" title="切换主题">🎨</button>
+        <div class="theme-dropdown" id="themeDropdown">
+          <button class="theme-option" onclick="setTheme('light')"><span class="dot" style="background:#f5f6f8"></span>浅色</button>
+          <button class="theme-option" onclick="setTheme('blue')"><span class="dot" style="background:#d0dcea"></span>蓝色</button>
+          <button class="theme-option" onclick="setTheme('green')"><span class="dot" style="background:#d0e0d4"></span>绿色</button>
+          <button class="theme-option" onclick="setTheme('pink')"><span class="dot" style="background:#e8d4da"></span>粉色</button>
+          <button class="theme-option" onclick="setTheme('yellow')"><span class="dot" style="background:#e8e0c8"></span>黄色</button>
+          <button class="theme-option" onclick="setTheme('dark')"><span class="dot" style="background:#16181e"></span>暗色</button>
+        </div>
+      </div>
+    </div>
+    <div class="new-project-form">
+      <h3>新建项目</h3>
+      <input type="text" id="newProjectName" placeholder="输入项目名称...">
+      <button onclick="addNewProject()">添加项目</button>
+    </div>
+  </div>
+  <div class="project-list-scroll" id="projectList"></div>
+  <div class="sidebar-footer">
+    <div class="data-notice">
+      <p>所有数据仅保存在当前浏览器的本地存储（LocalStorage）中。</p>
+      <p>必须使用同一浏览器、同一用户配置文件，且未清除浏览器缓存，数据才能保留。</p>
+      <p>建议用户及时导出备份，防止数据丢失。</p>
+    </div>
+    <div class="data-actions">
+      <button class="btn-data-action btn-export" onclick="exportData()">📤 导出数据</button>
+      <button class="btn-data-action btn-import" onclick="importData()">📥 导入数据</button>
+    </div>
+    <div class="sidebar-bottom-meta">
+      <span class="version-text">v1.1.0</span>
+      <a href="https://github.com/zby333/workflow_tracker#readme" target="_blank" class="readme-link">使用说明</a>
+    </div>
+  </div>
+</div>
+
+<!-- 主体 -->
+<div class="main-content" id="mainContent">
+  <div class="main-header">
+    <h2 id="projectTitle">选择项目以查看详情</h2>
+    <div class="header-actions" id="headerActions" style="display:none;">
+      <button class="btn-add-template" onclick="openTemplateModal()">📑 使用模板</button>
+      <button class="btn-add-template" onclick="saveAsTemplate()">💾 保存为模板</button>
+      <button class="btn-add-task" onclick="openAddTaskModal()">＋ 添加事项</button>
+    </div>
+  </div>
+  <div class="progress-bar-container" id="progressContainer" style="display:none;">
+    <div class="progress-bar-fill" id="progressFill" style="width:0%"></div>
+  </div>
+  <div id="viewTabs" class="view-tabs" style="display:none;">
+    <button class="view-tab active" onclick="switchView('cards')">📋 卡片视图</button>
+    <button class="view-tab" onclick="switchView('gantt')">📊 甘特图</button>
+  </div>
+  <div id="cardsView">
+    <div class="workflow" id="workflow"></div>
+  </div>
+  <div id="ganttView" style="display:none;">
+    <div class="gantt-container" id="ganttContainer"></div>
+  </div>
+  <div class="last-updated" id="lastUpdated" style="display:none;"></div>
+  <div class="stuck-note" id="stuckNote" style="display:none;"></div>
+  <div class="stuck-reason-box" id="stuckBox" style="display:none;">
+    <input type="text" id="stuckReasonInput" placeholder="填写停滞原因...">
+    <button class="btn-update" onclick="setStuckReason()">更新</button>
+    <button class="btn-clear" onclick="clearStuckReason()">清除停滞</button>
+  </div>
+</div>
+
+<!-- 弹窗容器 -->
+<div id="modalContainer"></div>
+
+<script src="js/app.js"></script>
+</body>
+</html>

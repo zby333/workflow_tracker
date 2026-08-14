@@ -1,0 +1,22 @@
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Screenshots / verification images
+verify_*.png
+*.screenshot.png
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Node modules (if using local server)
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*
