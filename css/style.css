@@ -570,6 +570,26 @@ body::before {
 }
 .task-card .btn-delete-task:hover { background: var(--stuck-bg); color: var(--danger); }
 
+/* Edit deps button */
+.task-card .btn-edit-deps {
+  position: absolute;
+  top: 6px;
+  right: 32px;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--locked-text);
+  font-size: 0.75rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  padding: 0;
+}
+.task-card .btn-edit-deps:hover { background: var(--accent-light); color: var(--accent); }
+
 /* ===== STUCK REASON ===== */
 .stuck-note {
   margin-top: 20px;
@@ -797,6 +817,9 @@ body::before {
 .gantt-chart {
   min-width: 650px;
 }
+.gantt-chart-wide {
+  min-width: 700px;
+}
 .gantt-row {
   display: flex;
   align-items: center;
@@ -819,7 +842,7 @@ body::before {
   flex: 1;
   display: flex;
   position: relative;
-  height: 24px;
+  height: 28px;
   margin-left: 8px;
 }
 .gantt-bar {
@@ -834,14 +857,39 @@ body::before {
   color: #fff;
   transition: all 0.3s;
   min-width: 20px;
+  z-index: 2;
 }
 .gantt-bar.completed { background: var(--gantt-bar-done); }
-.gantt-bar.active { background: var(--accent); }
-.gantt-bar.locked { background: var(--gantt-bar-locked); color: var(--locked-text); }
+
+/* Gantt marker for uncompleted tasks */
+.gantt-marker {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.85rem;
+  z-index: 2;
+  line-height: 1;
+}
+.gantt-marker.locked { opacity: 0.5; }
+.gantt-marker.pending { opacity: 0.7; }
+
+/* Gantt grid lines */
+.gantt-gridline {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 1px;
+  background: var(--gantt-line);
+  opacity: 0.5;
+  z-index: 1;
+  pointer-events: none;
+}
+
 .gantt-header {
   display: flex;
   align-items: center;
-  height: 30px;
+  height: 32px;
   border-bottom: 2px solid var(--border);
   margin-bottom: 4px;
 }
@@ -862,21 +910,36 @@ body::before {
 }
 .gantt-tick {
   position: absolute;
-  font-size: 0.65rem;
+  font-size: 0.68rem;
   color: var(--text-secondary);
   transform: translateX(-50%);
-}
-.gantt-connector {
-  position: absolute;
-  border-top: 2px dashed var(--accent-light);
-  height: 0;
-  top: 50%;
+  white-space: nowrap;
 }
 .gantt-empty {
   text-align: center;
-  padding: 40px 20px;
+  padding: 30px 20px;
   color: var(--text-secondary);
+  font-size: 0.9rem;
 }
+
+/* Gantt task list (shown when no completed tasks) */
+.gantt-task-list {
+  padding: 0 16px 12px;
+}
+.gantt-task-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 4px;
+  font-size: 0.85rem;
+}
+.gantt-task-item.locked { background: var(--locked-bg); color: var(--locked-text); }
+.gantt-task-item.pending { background: var(--bg-card); color: var(--text-secondary); }
+.gantt-task-name { font-weight: 600; }
+.gantt-task-status { font-size: 0.8rem; }
+.gantt-dep-hint { font-size: 0.72rem; opacity: 0.7; margin-left: 4px; }
 
 /* ===== TEMPLATE LIST ===== */
 .template-list {

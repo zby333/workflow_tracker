@@ -283,6 +283,13 @@ function renderWorkflow() {
     delBtn.onclick = (e) => { e.stopPropagation(); deleteTask(index); };
     card.appendChild(delBtn);
 
+    const editBtn = document.createElement("button");
+    editBtn.className = "btn-edit-deps";
+    editBtn.textContent = "✎";
+    editBtn.title = "编辑依赖";
+    editBtn.onclick = (e) => { e.stopPropagation(); openEditDepsModal(index); };
+    card.appendChild(editBtn);
+
     const title = document.createElement("h4");
     title.textContent = task.name;
     card.appendChild(title);
@@ -395,7 +402,7 @@ function closeModal(e) {
 // ===== Delete task =====
 function deleteTask(index) {
   const task = selectedProject.tasks[index];
-  if (!confirm(`确定删除事项"${task.name}"？\n其他事项对该事项的依赖也将被清除。`)) return;
+  if (!confirm(`确定删除事项“${task.name}”？\n其他事项对该事项的依赖也将被清除。`)) return;
   selectedProject.tasks.splice(index, 1);
   selectedProject.tasks.forEach(t => {
     if (t.dependsOn) {
@@ -404,6 +411,63 @@ function deleteTask(index) {
   });
   renderWorkflow();
   renderProjectList();
+}
+
+// ===== Edit dependencies =====
+function openEditDepsModal(taskIndex) {
+  if (!selectedProject) return;
+  const task = selectedProject.tasks[taskIndex];
+  const otherTasks = selectedProject.tasks.filter((t, i) => i !== taskIndex);
+  const currentDeps = task.dependsOn || [];
+  const container = document.getElementById("modalContainer");
+  container.innerHTML = `
+    <div class="modal-overlay" onclick="closeModal(event)">
+      <div class="modal" onclick="event.stopPropagation()">
+        <h3>编辑依赖 — ${task.name}</h3>
+        <label>前置依赖事项（按住 Ctrl 多选）</label>
+        <select id="modalEditDeps" multiple>
+          ${otherTasks.map(t => `<option value="${t.name}"${currentDeps.includes(t.name) ? ' selected' : ''}>${t.name}</option>`).join("")}
+        </select>
+        <div style="font-size:0.75rem;color:var(--text-secondary);margin-top:4px;">不选则表示无依赖</div>
+        <div class="modal-actions">
+          <button class="btn-cancel" onclick="closeModal()">取消</button>
+          <button class="btn-confirm" onclick="confirmEditDeps(${taskIndex})">保存</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function wouldCreateCycle(taskIndex, newDeps) {
+  const tasks = selectedProject.tasks;
+  const taskName = tasks[taskIndex].name;
+  // BFS: from each new dep, check if we can reach taskName via its dependsOn chain
+  const visited = new Set();
+  const queue = [...newDeps];
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (current === taskName) return true;
+    if (visited.has(current)) continue;
+    visited.add(current);
+    const depTask = tasks.find(t => t.name === current);
+    if (depTask && depTask.dependsOn) {
+      queue.push(...depTask.dependsOn);
+    }
+  }
+  return false;
+}
+
+function confirmEditDeps(taskIndex) {
+  const depSelect = document.getElementById("modalEditDeps");
+  const newDeps = Array.from(depSelect.selectedOptions).map(o => o.value);
+  if (wouldCreateCycle(taskIndex, newDeps)) {
+    alert("无法保存：该依赖设置会产生循环依赖！");
+    return;
+  }
+  selectedProject.tasks[taskIndex].dependsOn = newDeps;
+  closeModal();
+  renderWorkflow();
+  renderProjectList();
+  if (currentView === "gantt") renderGantt();
 }
 
 // ===== Save as template =====
@@ -641,57 +705,47 @@ function renderGantt() {
     return;
   }
   const tasks = selectedProject.tasks;
-  const now = new Date();
+  const completedTasks = tasks.filter(t => t.completed && t.completedAt);
 
-  const taskTimes = tasks.map((task, idx) => {
-    if (task.completed && task.completedAt) {
-      return new Date(task.completedAt);
-    }
-    return null;
-  });
-
-  const levels = computeLevels(tasks);
-  const maxLevel = Math.max(...levels, 0);
-
-  const completedTimes = taskTimes.filter(t => t !== null).map(t => t.getTime());
-  let minTime, maxTime;
-  if (completedTimes.length > 0) {
-    minTime = Math.min(...completedTimes);
-    maxTime = Math.max(...completedTimes);
-  } else {
-    minTime = now.getTime() - 86400000;
-    maxTime = now.getTime() + 86400000 * maxLevel;
+  // If no completed tasks, show a message
+  if (completedTasks.length === 0) {
+    let html = '<div class="gantt-chart gantt-chart-wide">';
+    html += '<div class="gantt-empty">暂无完成数据，完成事项后甘特图将自动展示时间轴</div>';
+    html += '<div class="gantt-task-list">';
+    tasks.forEach(task => {
+      const isLocked = checkLocked(task);
+      const statusClass = isLocked ? "locked" : "pending";
+      const statusText = isLocked ? "🔒 未解锁" : "⏳ 待完成";
+      const depsText = task.dependsOn && task.dependsOn.length > 0
+        ? ' <span class="gantt-dep-hint">(依赖: ' + task.dependsOn.join(", ") + ')</span>' : '';
+      html += `<div class="gantt-task-item ${statusClass}"><span class="gantt-task-name">${task.name}</span><span class="gantt-task-status">${statusText}${depsText}</span></div>`;
+    });
+    html += '</div></div>';
+    container.innerHTML = html;
+    return;
   }
 
-  tasks.forEach((task, idx) => {
-    if (taskTimes[idx] !== null) return;
-    if (task.completed) { taskTimes[idx] = now; return; }
-    const isLocked = checkLocked(task);
-    if (!isLocked) {
-      taskTimes[idx] = new Date(now);
-    } else {
-      let maxDepTime = minTime;
-      if (task.dependsOn) {
-        task.dependsOn.forEach(dep => {
-          const di = tasks.findIndex(t => t.name === dep);
-          if (di >= 0 && taskTimes[di]) {
-            maxDepTime = Math.max(maxDepTime, taskTimes[di].getTime());
-          }
-        });
-      }
-      taskTimes[idx] = new Date(maxDepTime + 86400000);
-    }
-  });
+  const completedTimes = completedTasks.map(t => new Date(t.completedAt).getTime());
+  let minTime = Math.min(...completedTimes);
+  let maxTime = Math.max(...completedTimes);
+  if (minTime === maxTime) {
+    minTime -= 86400000;
+    maxTime += 86400000;
+  } else {
+    const padding = (maxTime - minTime) * 0.12;
+    minTime -= padding;
+    maxTime += padding;
+  }
+  const range = maxTime - minTime;
 
-  const allTimes = taskTimes.map(t => t.getTime());
-  minTime = Math.min(...allTimes);
-  maxTime = Math.max(...allTimes);
-  const range = maxTime - minTime || 86400000;
-
+  // Calculate tick count and chart width
   const totalDays = Math.ceil(range / 86400000) + 1;
-  const tickCount = Math.min(totalDays, 10);
+  let tickCount = Math.min(totalDays, 12);
+  const trackMinWidth = Math.max(500, tickCount * 70);
+  const chartWidth = 160 + 16 + trackMinWidth;
 
-  let html = '<div class="gantt-chart">';
+  // Build header with date ticks
+  let html = `<div class="gantt-chart gantt-chart-wide" style="min-width:${chartWidth}px">`;
   html += '<div class="gantt-header">';
   html += '<div class="gantt-header-label">事项</div>';
   html += '<div class="gantt-header-ticks">';
@@ -702,24 +756,29 @@ function renderGantt() {
   }
   html += '</div></div>';
 
+  // Build rows
   tasks.forEach((task, idx) => {
     const isLocked = checkLocked(task);
-    let barClass = "active";
-    if (task.completed) barClass = "completed";
-    else if (isLocked) barClass = "locked";
-
-    const t = taskTimes[idx];
-    const leftPct = ((t.getTime() - minTime) / range) * 100;
-    const barWidth = Math.max(3, 100 / Math.max(tasks.length, 1));
-
-    const timeLabel = task.completed && task.completedAt
-      ? formatTime(new Date(task.completedAt)).split(' ')[0].slice(5)
-      : '';
-
     html += '<div class="gantt-row">';
     html += `<div class="gantt-label" title="${task.name}">${task.name}</div>`;
     html += '<div class="gantt-track">';
-    html += `<div class="gantt-bar ${barClass}" style="left:calc(${leftPct}% - ${barWidth/2}%);width:${barWidth}%" title="${task.name}${timeLabel ? ' — ' + timeLabel : ''}">${task.completed ? '✓' : ''}</div>`;
+
+    // Vertical grid lines
+    for (let i = 0; i <= tickCount; i++) {
+      html += `<div class="gantt-gridline" style="left:${i / tickCount * 100}%"></div>`;
+    }
+
+    if (task.completed && task.completedAt) {
+      const t = new Date(task.completedAt).getTime();
+      const leftPct = ((t - minTime) / range) * 100;
+      const timeLabel = formatTime(new Date(task.completedAt)).split(' ')[0].slice(5);
+      html += `<div class="gantt-bar completed" style="left:calc(${leftPct}% - 10px);width:20px" title="${task.name} — ${timeLabel}">✓</div>`;
+    } else {
+      const statusIcon = isLocked ? "🔒" : "○";
+      const statusTitle = isLocked ? "未解锁" : "待完成";
+      html += `<div class="gantt-marker ${isLocked ? 'locked' : 'pending'}" title="${task.name} — ${statusTitle}">${statusIcon}</div>`;
+    }
+
     html += '</div></div>';
   });
 
@@ -753,7 +812,7 @@ function computeLevels(tasks) {
 // ===== Export / Import Data =====
 function exportData() {
   const data = {
-    version: "1.1.0",
+    version: "1.1.1",
     exportDate: new Date().toISOString(),
     projects: projects,
     customTemplates: customTemplates,
