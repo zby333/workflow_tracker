@@ -1,57 +1,83 @@
 /*
- * Project Workflow Tracker — Application Logic
+ * SoloFlow — Application Logic
  * ==============================================
  * Pure vanilla JavaScript, no external dependencies.
  * Data persisted via browser localStorage.
  */
 
-// ===== Default project task data =====
-const defaultProjectTasks = [
-  { name: "立项", completed: false, dependsOn: [] },
-  { name: "盖章", completed: false, dependsOn: ["立项"] },
-  { name: "专家邀请单", completed: false, dependsOn: ["约专家", "报销单"] },
-  { name: "约专家", completed: false, dependsOn: [] },
-  { name: "会议准备与会议", completed: false, dependsOn: [] },
-  { name: "专家开票", completed: false, dependsOn: ["会议准备与会议"] },
-  { name: "事前申请", completed: false, dependsOn: [] },
-  { name: "报销单", completed: false, dependsOn: ["事前申请", "专家开票"] },
-  { name: "报告初稿", completed: false, dependsOn: [] },
-  { name: "概算", completed: false, dependsOn: [] },
-  { name: "定稿审核", completed: false, dependsOn: ["概算"] },
-  { name: "发x总", completed: false, dependsOn: ["报告初稿"] },
-  { name: "修改", completed: false, dependsOn: ["发x总"] },
-  { name: "修订版发专家复审", completed: false, dependsOn: [] },
-  { name: "收集复审意见", completed: false, dependsOn: ["修订版发专家复审"] }
-];
+// ===== Utility functions =====
+function escapeHtml(str) {
+  if (typeof str !== "string") return str;
+  return str.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/'/g, "&#39;");
+}
 
-// ===== Built-in example template =====
+function safeGetStorage(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw !== null ? JSON.parse(raw) : fallback;
+  } catch (e) {
+    console.error("[SoloFlow] Failed to parse localStorage key \"" + key + "\":", e);
+    return fallback;
+  }
+}
+
+// ===== Built-in templates =====
 const defaultTemplates = [
   {
-    id: "builtin-example",
-    name: "示例模板 — 项目流程",
+    id: "builtin-work",
+    name: "通用工作项目",
     tasks: [
-      { name: "立项", dependsOn: [] },
-      { name: "盖章", dependsOn: ["立项"] },
-      { name: "专家邀请单", dependsOn: ["约专家", "报销单"] },
-      { name: "约专家", dependsOn: [] },
-      { name: "会议准备与会议", dependsOn: [] },
-      { name: "专家开票", dependsOn: ["会议准备与会议"] },
-      { name: "事前申请", dependsOn: [] },
-      { name: "报销单", dependsOn: ["事前申请", "专家开票"] },
-      { name: "报告初稿", dependsOn: [] },
-      { name: "概算", dependsOn: [] },
-      { name: "定稿审核", dependsOn: ["概算"] },
-      { name: "发x总", dependsOn: ["报告初稿"] },
-      { name: "修改", dependsOn: ["发x总"] },
-      { name: "修订版发专家复审", dependsOn: [] },
-      { name: "收集复审意见", dependsOn: ["修订版发专家复审"] }
+      { name: "梳理各系统待办清单", dependsOn: [] },
+      { name: "标注待办优先级", dependsOn: ["梳理各系统待办清单"] },
+      { name: "OA 提交报销单", dependsOn: ["标注待办优先级"] },
+      { name: "等待报销审批通过", dependsOn: ["OA 提交报销单"] },
+      { name: "CRM 更新客户跟进记录", dependsOn: ["标注待办优先级"] },
+      { name: "等待客户提供需求确认函", dependsOn: ["CRM 更新客户跟进记录"] },
+      { name: "工单系统处理客户工单", dependsOn: ["标注待办优先级"] },
+      { name: "等待工单客户回访结果", dependsOn: ["工单系统处理客户工单"] },
+      { name: "汇总本周进展周报", dependsOn: ["等待报销审批通过", "等待客户提供需求确认函", "等待工单客户回访结果"] },
+      { name: "OA 提交周报归档", dependsOn: ["汇总本周进展周报"] }
+    ]
+  },
+  {
+    id: "builtin-learning",
+    name: "技能学习",
+    tasks: [
+      { name: "确定学习目标与截止日期", dependsOn: [] },
+      { name: "调研课程与书籍", dependsOn: ["确定学习目标与截止日期"] },
+      { name: "评估自身基础水平", dependsOn: ["确定学习目标与截止日期"] },
+      { name: "制定分阶段学习计划", dependsOn: ["调研课程与书籍", "评估自身基础水平"] },
+      { name: "完成入门章节学习", dependsOn: ["制定分阶段学习计划"] },
+      { name: "整理入门学习笔记", dependsOn: ["完成入门章节学习"] },
+      { name: "完成课后练习与测验", dependsOn: ["完成入门章节学习"] },
+      { name: "制作第一个练习作品", dependsOn: ["整理入门学习笔记", "完成课后练习与测验"] },
+      { name: "复盘练习作品找差距", dependsOn: ["制作第一个练习作品"] },
+      { name: "针对性补强薄弱点", dependsOn: ["复盘练习作品找差距"] },
+      { name: "完成进阶章节学习", dependsOn: ["针对性补强薄弱点"] },
+      { name: "制作毕业作品", dependsOn: ["完成进阶章节学习"] },
+      { name: "发布作品并总结成果", dependsOn: ["制作毕业作品"] }
+    ]
+  },
+  {
+    id: "builtin-travel",
+    name: "旅游计划",
+    tasks: [
+      { name: "确定目的地与日期", dependsOn: [] },
+      { name: "景点与攻略调研", dependsOn: ["确定目的地与日期"] },
+      { name: "签证办理", dependsOn: ["确定目的地与日期"] },
+      { name: "行程规划", dependsOn: ["景点与攻略调研"] },
+      { name: "机票预订", dependsOn: ["签证办理"] },
+      { name: "酒店预订", dependsOn: ["行程规划"] },
+      { name: "旅行保险购买", dependsOn: ["机票预订"] },
+      { name: "行李打包", dependsOn: ["行程规划"] },
+      { name: "出发前确认", dependsOn: ["机票预订", "酒店预订", "行李打包"] }
     ]
   }
 ];
 
-let projects = JSON.parse(localStorage.getItem("projects")) || [];
-let customTemplates = JSON.parse(localStorage.getItem("customTemplates")) || [];
-let hiddenBuiltinTemplates = JSON.parse(localStorage.getItem("hiddenBuiltinTemplates")) || [];
+let projects = safeGetStorage("projects", []);
+let customTemplates = safeGetStorage("customTemplates", []);
+let hiddenBuiltinTemplates = safeGetStorage("hiddenBuiltinTemplates", []);
 let selectedProject = null;
 let currentTheme = localStorage.getItem("theme") || "light";
 let currentView = "cards";
@@ -62,18 +88,61 @@ function getAllTemplates() {
   return [...visibleBuiltIn, ...customTemplates];
 }
 
-// Create default project on first load
-function initDefaultProject() {
-  if (projects.length === 0) {
-    const defaultProj = {
-      id: Date.now(),
-      name: "示例项目 — 项目流程",
-      tasks: JSON.parse(JSON.stringify(defaultProjectTasks)),
-      stuckReason: ""
-    };
-    projects.push(defaultProj);
-    saveProjects();
-  }
+// Build fresh task list from a template
+function buildTasksFromTemplate(tpl) {
+  return JSON.parse(JSON.stringify(tpl.tasks)).map(t => ({
+    name: t.name,
+    dependsOn: t.dependsOn || [],
+    completed: false,
+    createdAt: new Date().toISOString()
+  }));
+}
+
+// Create three sample projects (one per built-in template) on first load
+function initSampleProjects() {
+  if (projects.length > 0) return;
+  const daysAgo = n => new Date(Date.now() - n * 86400000).toISOString();
+  const baseId = Date.now();
+
+  // Learning sample: not started yet
+  projects.push({
+    id: baseId,
+    name: "示例 — 技能学习",
+    tasks: buildTasksFromTemplate(defaultTemplates.find(t => t.id === "builtin-learning")),
+    stuckReason: ""
+  });
+
+  // Work sample: partially completed with a spread-out timeline
+  const workTasks = buildTasksFromTemplate(defaultTemplates.find(t => t.id === "builtin-work"));
+  const workProgress = {
+    "梳理各系统待办清单": daysAgo(20),
+    "标注待办优先级": daysAgo(16),
+    "OA 提交报销单": daysAgo(12),
+    "CRM 更新客户跟进记录": daysAgo(8),
+    "工单系统处理客户工单": daysAgo(4)
+  };
+  workTasks.forEach(t => {
+    if (workProgress[t.name]) {
+      t.completed = true;
+      t.completedAt = workProgress[t.name];
+    }
+  });
+  projects.push({
+    id: baseId + 1,
+    name: "示例 — 通用工作项目",
+    tasks: workTasks,
+    stuckReason: ""
+  });
+
+  // Travel sample: stuck with a reason
+  projects.push({
+    id: baseId + 2,
+    name: "示例 — 旅游计划",
+    tasks: buildTasksFromTemplate(defaultTemplates.find(t => t.id === "builtin-travel")),
+    stuckReason: "此处是一条停滞原因"
+  });
+
+  saveProjects();
 }
 
 // Init theme
@@ -81,7 +150,7 @@ document.body.setAttribute("data-theme", currentTheme);
 updateThemeUI();
 
 window.onload = function() {
-  initDefaultProject();
+  initSampleProjects();
   renderProjectList();
   initSidebarResize();
   restoreSidebarWidth();
@@ -370,7 +439,7 @@ function openAddTaskModal() {
         <input type="text" id="modalTaskName" placeholder="输入事项名称...">
         <label>依赖事项（按住 Ctrl 多选）</label>
         <select id="modalDeps" multiple>
-          ${taskNames.map(n => `<option value="${n}">${n}</option>`).join("")}
+          ${taskNames.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join("")}
         </select>
         <div style="font-size:0.75rem;color:var(--text-secondary);margin-top:4px;">不选则表示无依赖</div>
         <div class="modal-actions">
@@ -423,10 +492,10 @@ function openEditDepsModal(taskIndex) {
   container.innerHTML = `
     <div class="modal-overlay" onclick="closeModal(event)">
       <div class="modal" onclick="event.stopPropagation()">
-        <h3>编辑依赖 — ${task.name}</h3>
+        <h3>编辑依赖 — ${escapeHtml(task.name)}</h3>
         <label>前置依赖事项（按住 Ctrl 多选）</label>
         <select id="modalEditDeps" multiple>
-          ${otherTasks.map(t => `<option value="${t.name}"${currentDeps.includes(t.name) ? ' selected' : ''}>${t.name}</option>`).join("")}
+          ${otherTasks.map(t => `<option value="${escapeHtml(t.name)}"${currentDeps.includes(t.name) ? ' selected' : ''}>${escapeHtml(t.name)}</option>`).join("")}
         </select>
         <div style="font-size:0.75rem;color:var(--text-secondary);margin-top:4px;">不选则表示无依赖</div>
         <div class="modal-actions">
@@ -523,7 +592,7 @@ function openTemplateModal() {
     listHtml += `
       <div class="template-item" onclick="applyTemplate('${tpl.id}')">
         <div class="template-item-info">
-          <div class="template-item-name">${tpl.name}</div>
+          <div class="template-item-name">${escapeHtml(tpl.name)}</div>
           <div class="template-item-count">${tpl.tasks.length} 个事项 · 内置</div>
         </div>
         <button class="template-item-del" onclick="event.stopPropagation();hideBuiltinTemplate('${tpl.id}')">删除</button>
@@ -536,7 +605,7 @@ function openTemplateModal() {
       listHtml += `
         <div class="template-item" onclick="applyTemplate(${tpl.id})">
           <div class="template-item-info">
-            <div class="template-item-name">${tpl.name}</div>
+            <div class="template-item-name">${escapeHtml(tpl.name)}</div>
             <div class="template-item-count">${tpl.tasks.length} 个事项</div>
           </div>
           <button class="template-item-del" onclick="event.stopPropagation();deleteTemplate(${tpl.id})">删除</button>
@@ -717,8 +786,8 @@ function renderGantt() {
       const statusClass = isLocked ? "locked" : "pending";
       const statusText = isLocked ? "🔒 未解锁" : "⏳ 待完成";
       const depsText = task.dependsOn && task.dependsOn.length > 0
-        ? ' <span class="gantt-dep-hint">(依赖: ' + task.dependsOn.join(", ") + ')</span>' : '';
-      html += `<div class="gantt-task-item ${statusClass}"><span class="gantt-task-name">${task.name}</span><span class="gantt-task-status">${statusText}${depsText}</span></div>`;
+        ? ' <span class="gantt-dep-hint">(依赖: ' + escapeHtml(task.dependsOn.join(", ")) + ')</span>' : '';
+      html += `<div class="gantt-task-item ${statusClass}"><span class="gantt-task-name">${escapeHtml(task.name)}</span><span class="gantt-task-status">${statusText}${depsText}</span></div>`;
     });
     html += '</div></div>';
     container.innerHTML = html;
@@ -760,7 +829,7 @@ function renderGantt() {
   tasks.forEach((task, idx) => {
     const isLocked = checkLocked(task);
     html += '<div class="gantt-row">';
-    html += `<div class="gantt-label" title="${task.name}">${task.name}</div>`;
+    html += `<div class="gantt-label" title="${escapeHtml(task.name)}">${escapeHtml(task.name)}</div>`;
     html += '<div class="gantt-track">';
 
     // Vertical grid lines
@@ -772,11 +841,11 @@ function renderGantt() {
       const t = new Date(task.completedAt).getTime();
       const leftPct = ((t - minTime) / range) * 100;
       const timeLabel = formatTime(new Date(task.completedAt)).split(' ')[0].slice(5);
-      html += `<div class="gantt-bar completed" style="left:calc(${leftPct}% - 10px);width:20px" title="${task.name} — ${timeLabel}">✓</div>`;
+      html += `<div class="gantt-bar completed" style="left:calc(${leftPct}% - 10px);width:20px" title="${escapeHtml(task.name)} — ${escapeHtml(timeLabel)}">✓</div>`;
     } else {
       const statusIcon = isLocked ? "🔒" : "○";
       const statusTitle = isLocked ? "未解锁" : "待完成";
-      html += `<div class="gantt-marker ${isLocked ? 'locked' : 'pending'}" title="${task.name} — ${statusTitle}">${statusIcon}</div>`;
+      html += `<div class="gantt-marker ${isLocked ? 'locked' : 'pending'}" title="${escapeHtml(task.name)} — ${statusTitle}">${statusIcon}</div>`;
     }
 
     html += '</div></div>';
@@ -786,6 +855,8 @@ function renderGantt() {
   container.innerHTML = html;
 }
 
+// Compute topological depth levels for each task based on dependency chains.
+// Reserved for future use: hierarchical Gantt layout or dependency-based task sorting.
 function computeLevels(tasks) {
   const nameToIdx = {};
   tasks.forEach((t, i) => nameToIdx[t.name] = i);
@@ -812,7 +883,7 @@ function computeLevels(tasks) {
 // ===== Export / Import Data =====
 function exportData() {
   const data = {
-    version: "1.1.1",
+    version: "1.2.0",
     exportDate: new Date().toISOString(),
     projects: projects,
     customTemplates: customTemplates,
@@ -824,7 +895,7 @@ function exportData() {
   const a = document.createElement("a");
   a.href = url;
   const dateStr = new Date().toISOString().slice(0, 10);
-  a.download = `project-tracker-backup-${dateStr}.json`;
+  a.download = `soloflow-backup-${dateStr}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
