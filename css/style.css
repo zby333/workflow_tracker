@@ -967,6 +967,12 @@ body::before {
   border-radius: 4px; transition: all 0.2s;
 }
 .template-item-del:hover { color: var(--danger); background: var(--stuck-bg); }
+.btn-restore-templates {
+  background: var(--bg-card); border: 1px dashed var(--border); color: var(--text-secondary);
+  cursor: pointer; padding: 10px 16px; border-radius: 8px; font-size: 0.85rem;
+  transition: all 0.2s;
+}
+.btn-restore-templates:hover { color: var(--accent); border-color: var(--accent); }
 .no-templates { text-align: center; color: var(--text-secondary); padding: 20px; font-size: 0.9rem; }
 
 /* ===== SIDEBAR FOOTER ===== */

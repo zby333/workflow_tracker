@@ -44,7 +44,7 @@
       <button class="btn-data-action btn-import" onclick="importData()">📥 导入数据</button>
     </div>
     <div class="sidebar-bottom-meta">
-      <span class="version-text">v1.2.0</span>
+      <span class="version-text">v1.2.1</span>
       <a href="https://github.com/zby333/soloflow#readme" target="_blank" class="readme-link">使用说明</a>
       <a href="https://github.com/zby333/soloflow/issues/new/choose" target="_blank" class="readme-link">💬 反馈建议</a>
     </div>
@@ -65,8 +65,8 @@
     <div class="progress-bar-fill" id="progressFill" style="width:0%"></div>
   </div>
   <div id="viewTabs" class="view-tabs" style="display:none;">
-    <button class="view-tab active" onclick="switchView('cards')">📋 卡片视图</button>
-    <button class="view-tab" onclick="switchView('gantt')">📊 甘特图</button>
+    <button class="view-tab active" data-view="cards" onclick="switchView('cards')">📋 卡片视图</button>
+    <button class="view-tab" data-view="gantt" onclick="switchView('gantt')">📊 甘特图</button>
   </div>
   <div id="cardsView">
     <div class="workflow" id="workflow"></div>

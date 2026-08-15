@@ -1,6 +1,6 @@
 # SoloFlow — 个人本地流程追踪工具
 
-**版本：v1.2.0**
+**版本：v1.2.1**
 
 SoloFlow 是一款专为个人设计的轻量本地工作流工具，旨在帮助用户理清复杂事项的执行顺序，降低流程性事务带来的认知负担。无论是工作计划、学习进度、备考安排还是旅行准备，都可以用它来建立清晰的事项依赖关系，让每一步有序推进。
 
@@ -10,7 +10,7 @@ SoloFlow 是一款专为个人设计的轻量本地工作流工具，旨在帮�
 
 **所有数据仅在浏览器本地处理和存储，不会上传到任何服务器，也不会用于任何其他用途；无需注册账号、无需登录，打开页面即可使用。**
 
-[![在线使用](https://img.shields.io/badge/在线使用-点击进入-blue?style=for-the-badge)](https://zby333.github.io/soloflow/) [![下载源码](https://img.shields.io/badge/下载源码-v1.2.0-green?style=for-the-badge)](https://github.com/zby333/soloflow/archive/refs/tags/v1.2.0.zip)
+[![在线使用](https://img.shields.io/badge/在线使用-点击进入-blue?style=for-the-badge)](https://zby333.github.io/soloflow/) [![下载源码](https://img.shields.io/badge/下载源码-v1.2.1-green?style=for-the-badge)](https://github.com/zby333/soloflow/archive/refs/tags/v1.2.1.zip)
 
 ## 💡 它解决什么问题
 
@@ -143,6 +143,22 @@ soloflow/
 - **localStorage** — 浏览器端数据持久化
 
 ## 📝 更新日志
+
+### v1.2.1 (2026-08-16)
+
+**问题修复**
+- 🐛 内置模板条目的按钮文案由「删除」改为「隐藏」，与实际的隐藏行为保持一致，避免误导
+- 🐛 修正隐藏内置模板的提示文案，明确隐藏后可在弹窗底部恢复（原文案误称刷新页面后可恢复）
+- 🐛 移除渲染函数中不必要的 localStorage 写入，改为在真实数据变更处显式保存，只读渲染操作不再触发存储写入
+
+**体验优化**
+- ✨ 「使用模板」弹窗底部新增「恢复隐藏的模板」入口，可随时恢复被隐藏的内置模板（仅在存在隐藏模板时显示）
+- ✨ 模态框支持按 Esc 键关闭，同时保留点遮罩、取消按钮等原有关闭方式
+- 📊 视图切换 tab 改用 `data-view` 属性定位，降低后续新增视图时的维护风险
+
+**健壮性增强**
+- 🛡 数据导入新增结构校验，拦截缺少项目字段、事项字段或格式异常的备份文件，不破坏现有数据
+- 🛡 主题与侧边栏宽度读取增加容错，localStorage 不可用或主题值异常时回退默认浅色主题
 
 ### v1.2.0 (2026-08-15)
 

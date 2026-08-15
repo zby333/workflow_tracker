@@ -21,6 +21,17 @@ function safeGetStorage(key, fallback) {
   }
 }
 
+// Read a raw (non-JSON) string value from localStorage with error tolerance
+function safeGetStorageRaw(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw !== null ? raw : fallback;
+  } catch (e) {
+    console.error("[SoloFlow] Failed to read localStorage key \"" + key + "\":", e);
+    return fallback;
+  }
+}
+
 // ===== Built-in templates =====
 const defaultTemplates = [
   {
@@ -79,7 +90,7 @@ let projects = safeGetStorage("projects", []);
 let customTemplates = safeGetStorage("customTemplates", []);
 let hiddenBuiltinTemplates = safeGetStorage("hiddenBuiltinTemplates", []);
 let selectedProject = null;
-let currentTheme = localStorage.getItem("theme") || "light";
+let currentTheme = safeGetStorageRaw("theme", "light");
 let currentView = "cards";
 
 // Get all templates (built-in + custom, excluding hidden built-in)
@@ -189,7 +200,7 @@ const SIDEBAR_MAX = 500;
 const SIDEBAR_DEFAULT = 280;
 
 function restoreSidebarWidth() {
-  const saved = localStorage.getItem("sidebarWidth");
+  const saved = safeGetStorageRaw("sidebarWidth", null);
   const w = saved ? Math.max(SIDEBAR_MIN, Math.min(SIDEBAR_MAX, parseInt(saved, 10))) : SIDEBAR_DEFAULT;
   const sidebar = document.getElementById("sidebar");
   sidebar.style.width = w + "px";
@@ -279,7 +290,6 @@ function renderProjectList() {
 
     list.appendChild(card);
   });
-  saveProjects();
 }
 
 function isAllCompleted(project) {
@@ -388,7 +398,6 @@ function renderWorkflow() {
   });
 
   updateProgress();
-  saveProjects();
 }
 
 function checkLocked(task) {
@@ -419,6 +428,7 @@ function toggleTask(taskName) {
     } else {
       delete task.completedAt;
     }
+    saveProjects();
     renderWorkflow();
     renderProjectList();
     updateLastUpdated();
@@ -458,6 +468,7 @@ function confirmAddTask() {
   const depSelect = document.getElementById("modalDeps");
   const deps = Array.from(depSelect.selectedOptions).map(o => o.value);
   selectedProject.tasks.push({ name, completed: false, dependsOn: deps, createdAt: new Date().toISOString() });
+  saveProjects();
   closeModal();
   renderWorkflow();
   renderProjectList();
@@ -467,6 +478,11 @@ function closeModal(e) {
   if (e && e.target !== e.currentTarget) return;
   document.getElementById("modalContainer").innerHTML = "";
 }
+
+// Close modal on Escape key
+document.addEventListener("keydown", function(e) {
+  if (e.key === "Escape") closeModal();
+});
 
 // ===== Delete task =====
 function deleteTask(index) {
@@ -478,6 +494,7 @@ function deleteTask(index) {
       t.dependsOn = t.dependsOn.filter(d => d !== task.name);
     }
   });
+  saveProjects();
   renderWorkflow();
   renderProjectList();
 }
@@ -533,6 +550,7 @@ function confirmEditDeps(taskIndex) {
     return;
   }
   selectedProject.tasks[taskIndex].dependsOn = newDeps;
+  saveProjects();
   closeModal();
   renderWorkflow();
   renderProjectList();
@@ -595,7 +613,7 @@ function openTemplateModal() {
           <div class="template-item-name">${escapeHtml(tpl.name)}</div>
           <div class="template-item-count">${tpl.tasks.length} 个事项 · 内置</div>
         </div>
-        <button class="template-item-del" onclick="event.stopPropagation();hideBuiltinTemplate('${tpl.id}')">删除</button>
+        <button class="template-item-del" onclick="event.stopPropagation();hideBuiltinTemplate('${tpl.id}')">隐藏</button>
       </div>`;
   });
 
@@ -614,12 +632,16 @@ function openTemplateModal() {
   }
 
   listHtml += '</div>';
+  const restoreBtnHtml = hiddenBuiltinTemplates.length > 0
+    ? `<button class="btn-restore-templates" onclick="restoreHiddenTemplates()">↩ 恢复隐藏的模板（${hiddenBuiltinTemplates.length}）</button>`
+    : '';
   container.innerHTML = `
     <div class="modal-overlay" onclick="closeModal(event)">
       <div class="modal" onclick="event.stopPropagation()">
         <h3>📑 使用模板</h3>
         ${listHtml}
         <div class="modal-actions">
+          ${restoreBtnHtml}
           <button class="btn-cancel" onclick="closeModal()">关闭</button>
         </div>
       </div>
@@ -646,6 +668,7 @@ function applyTemplate(tplId) {
     t.createdAt = new Date().toISOString();
   });
   selectedProject.tasks.push(...newTasks);
+  saveProjects();
   closeModal();
   renderWorkflow();
   renderProjectList();
@@ -663,8 +686,17 @@ function deleteTemplate(tplId) {
 function hideBuiltinTemplate(tplId) {
   const tpl = defaultTemplates.find(t => t.id === tplId);
   if (!tpl) return;
-  if (!confirm(`确定隐藏内置模板"${tpl.name}"？\n刷新页面后可恢复。`)) return;
+  if (!confirm(`确定隐藏内置模板"${tpl.name}"？\n隐藏后可在弹窗底部恢复。`)) return;
   hiddenBuiltinTemplates.push(tplId);
+  localStorage.setItem("hiddenBuiltinTemplates", JSON.stringify(hiddenBuiltinTemplates));
+  openTemplateModal();
+}
+
+function restoreHiddenTemplates() {
+  const count = hiddenBuiltinTemplates.length;
+  if (count === 0) { alert("当前没有被隐藏的内置模板"); return; }
+  if (!confirm(`确定恢复 ${count} 个被隐藏的内置模板？\n恢复后它们将重新出现在模板列表中。`)) return;
+  hiddenBuiltinTemplates = [];
   localStorage.setItem("hiddenBuiltinTemplates", JSON.stringify(hiddenBuiltinTemplates));
   openTemplateModal();
 }
@@ -676,6 +708,7 @@ function addNewProject() {
   if (!name) { alert("请输入项目名称"); return; }
   const proj = { id: Date.now(), name, tasks: [], stuckReason: "" };
   projects.push(proj);
+  saveProjects();
   input.value = "";
   selectProject(proj.id);
   renderProjectList();
@@ -686,6 +719,7 @@ function deleteProject(id) {
   const proj = projects.find(p => p.id === id);
   if (!confirm(`确定删除项目"${proj.name}"？`)) return;
   projects = projects.filter(p => p.id !== id);
+  saveProjects();
   if (selectedProject && selectedProject.id === id) {
     selectedProject = null;
     document.getElementById("projectTitle").textContent = "选择项目以查看详情";
@@ -705,6 +739,7 @@ function setStuckReason() {
   if (!selectedProject) { alert("请先选择项目"); return; }
   const val = document.getElementById("stuckReasonInput").value.trim();
   selectedProject.stuckReason = val;
+  saveProjects();
   document.getElementById("stuckReasonInput").value = "";
   renderProjectList();
   renderWorkflow();
@@ -712,6 +747,7 @@ function setStuckReason() {
 function clearStuckReason() {
   if (!selectedProject) { alert("请先选择项目"); return; }
   selectedProject.stuckReason = "";
+  saveProjects();
   renderProjectList();
   renderWorkflow();
 }
@@ -742,8 +778,9 @@ document.getElementById("newProjectName").addEventListener("keydown", function(e
 // ===== View switching =====
 function switchView(view) {
   currentView = view;
-  document.querySelectorAll(".view-tab").forEach(t => t.classList.remove("active"));
-  document.querySelector(`.view-tab:${view === 'cards' ? 'first-child' : 'last-child'}`).classList.add("active");
+  document.querySelectorAll(".view-tab").forEach(tab => tab.classList.remove("active"));
+  const activeTab = document.querySelector(`.view-tab[data-view="${view}"]`);
+  if (activeTab) activeTab.classList.add("active");
   document.getElementById("cardsView").style.display = view === "cards" ? "block" : "none";
   document.getElementById("ganttView").style.display = view === "gantt" ? "block" : "none";
   if (view === "gantt") renderGantt();
@@ -883,7 +920,7 @@ function computeLevels(tasks) {
 // ===== Export / Import Data =====
 function exportData() {
   const data = {
-    version: "1.2.0",
+    version: "1.2.1",
     exportDate: new Date().toISOString(),
     projects: projects,
     customTemplates: customTemplates,
@@ -915,6 +952,14 @@ function importData() {
         const data = JSON.parse(ev.target.result);
         if (!data.projects || !Array.isArray(data.projects)) {
           alert("无效的数据文件：缺少项目数据");
+          return;
+        }
+        const invalidStructure = data.projects.some(p =>
+          !p || p.id == null || typeof p.name !== "string" || !Array.isArray(p.tasks)
+          || p.tasks.some(t => !t || typeof t.name !== "string")
+        );
+        if (invalidStructure) {
+          alert("无效的数据文件：项目数据结构不正确");
           return;
         }
         if (!confirm(`确定导入数据？\n当前所有数据将被替换为备份文件中的内容。\n\n备份文件包含 ${data.projects.length} 个项目。`)) return;
